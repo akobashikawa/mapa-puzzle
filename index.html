@@ -1,0 +1,376 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+	<title>Mapa Perú Puzzle</title>
+  <!--
+    Nombre     : MAPA PERU PUZZLE
+    Descripción: Juego rompecabezas con el mapa del Perú
+    Autor      : Antonio Kobashikawa Carrasco <akobashikawa@gmail.com>
+    Licencia   : GNU GPL <http://www.gnu.org/licenses/gpl-3.0.txt>
+    Versión    : 20100828
+    -->
+  
+  <script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+  <script type="text/javascript" src="js/raphael.js"></script>
+  
+  <style type="text/css">
+    body {
+      background-color: #222;
+      color: white;
+      font-family: "Century Gothic", Helvetica, "Bitstream Vera Sans", sans-serif;
+    }
+    #wrapper {
+      _position: absolute;
+      _top: 50%;
+    }
+    #container {
+      background-color: black;
+      width: 800px;
+      height: 500px;
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      margin: auto;
+      overflow: hide;
+      _position: relative;
+      _margin: 0 auto;
+      _top: -50%;
+      _overflow: none;
+    }
+    .info {
+      display: none;
+      text-align: center;
+      font-size: 18pt;
+      line-height: 27px;
+    }
+    #infobox {
+      border: 1px solid white;
+      position: absolute;
+      top: -29px;
+      left: 0;
+      width: 798px;
+      height: 27px;
+      overlay: auto;
+    }
+    #panel {
+      border: 1px solid white;
+      position: absolute;
+      top: 500px;
+      left: 0;
+      width: 798px;
+      height: 27px;
+      overlay: auto;
+    }
+    #shuffle_btn {
+      position: absolute;
+      right: 0;
+      background-color: white;
+      text-decoration: none;
+      font-size: 20px;
+      line-height: 23px;
+      padding: 2px;
+    }
+    #shuffle_btn:hover {
+      background-color: gold;
+    }
+    #time, #rest, #score {
+      color: yellow;
+    }
+    #test {
+      display: none;
+      font-family: "Courier New", Courier, monospaced;
+      font-size: 11pt;
+      position: absolute;
+      top: 527px;
+      left: 0;
+      width: 798px;
+      height: 27px;
+      color: #0f0;
+    }
+  </style>
+  
+  <script type="text/javascript">
+    function rand(n) {
+      return Math.floor(Math.random()*n);
+    }
+    var colors = [];
+    colors.push({
+      'Tumbes': 'yellow',
+      'Piura': 'orange',
+      'Lambayeque': 'red',
+      'La_Libertad': 'magenta',
+      'Ancash': '#0f0',
+      'Lima': 'purple',
+      'Ica': 'orange',
+      'Arequipa': 'magenta',
+      'Moquegua': 'orange',
+      'Tacna': 'yellow',
+      'Cajamarca': 'blue',
+      'Amazonas': 'purple',
+      'San_Martin': 'red',
+      'Huanuco': 'blue',
+      'Pasco': 'red',
+      'Junin': 'orange',
+      'Huancavelica': '#0f0',
+      'Ayacucho': 'purple',
+      'Apurimac': 'red',
+      'Cuzco': 'blue',
+      'Puno': '#0f0',
+      'Loreto': '#0f0',
+      'Ucayali': 'yellow',
+      'Madre_de_Dios': 'red',
+      'Titicaca': 'cyan'
+    });
+
+    
+    $(function() {
+      
+      //http://www.switchonthecode.com/tutorials/xml-parsing-with-jquery
+      $.ajax({
+        type: 'GET',
+        url: 'images/peru-800x500.xml',// .svg renamed .xml for IE support
+        dataType: 'xml',
+        success: function(xml) {
+          var r = Raphael('canvas', 800, 500);
+          var map = {};
+          var map_shadow = {};
+          var map_colors = {};
+          var map_x = {};
+          var map_y = {};
+          var map_length = 0;
+          var map_finished = {};
+          var bgcolor = $('#container').css('background-color');
+          var tolerance = $('#tolerance').val();
+          var def_opacity = 0.8;
+          var drag_opacity = 0.5;
+          var active = null;
+          
+          $(xml).find('path').each(function() {
+            map_length++;$('#rest').html(map_length);
+            var id = (String)($(this).attr('id'));
+            var path = (String)($(this).attr('d'));
+            // set colors
+            map_colors[id] = colors[rand(colors.length)][id];
+            // set shadow map
+            map_shadow[id] = r.path(path)
+              .attr({fill:'gold', opacity: 0});
+            // set main map
+            map[id] = r.path(path)
+              .attr({fill:map_colors[id], stroke: map_colors[id], opacity: def_opacity})
+              .drag(
+                // como los dx se incrementan continuamente
+                // aqui calculo el diferencial continuamente
+                function(dx, dy) {// move
+                  this.translate(dx-this.dx, dy-this.dy);
+                  this.dx = dx;
+                  this.dy = dy;
+                  if (Math.abs(this.getBBox().x-map_x[this.id]) <= $('#tolerance').val()
+                    && Math.abs(this.getBBox().y-map_y[this.id]) <= $('#tolerance').val()) {
+                    //this.translate(map_x[this.id]-this.getBBox().x, map_y[this.id]-this.getBBox().y);
+                    map_shadow[id].attr({opacity: 0.1});
+                  } else {
+                    map_shadow[id].attr({opacity: 0});
+                  }
+                  //$('#test').html(map_x[this.id]+','+map_y[this.id]+'/'+this.getBBox().x+','+this.getBBox().y);
+                },
+                function(ox, oy) {// start
+                  //this.ox = ox;
+                  //this.oy = oy;
+                  this.dx = 0;
+                  this.dy = 0;
+                  this.toFront();
+                  this.attr({opacity: drag_opacity});
+                  //$('#test').html(ox+'-'+oy);
+                },
+                function() {// up
+                  // trasladar a la posición original
+                  if (Math.abs(this.getBBox().x-map_x[this.id]) <= $('#tolerance').val()
+                    && Math.abs(this.getBBox().y-map_y[this.id]) <= $('#tolerance').val()) {
+                    //this.animate({translation: (map_x[this.id]-this.getBBox().x)+' '+(map_y[this.id]-this.getBBox().y)}, 200);
+                    this.translate(map_x[this.id]-this.getBBox().x, map_y[this.id]-this.getBBox().y);
+                    // anotar finished
+                    if (!(id in map_finished)) {
+                      map_finished[id] = '';
+                      $('#rest').html(1*$('#rest').html()-1);
+                      // incrementar puntaje
+                      $('#score').html(1*$('#score').html()+200-$('#tolerance').val());
+                    }
+                    // si terminó
+                    if (1*$('#rest').html()==0) {
+                      stopTimer();
+                      // preguntar si otra vez
+                      if ( confirm('¡Felicitaciones ' + $('#tolerance :selected').text() 
+                        + '\n\n\tHiciste ' + $('#score').html() + ' puntos'
+                        + '!\n\tEn ' + $('#time').html()
+                        + '\n\n¿Otra vez?' ) ) {
+                        //location.reload();
+                        shuffle();
+                      }
+                    }
+                    // quita el shadow que quedó en el move
+                    map_shadow[id].attr({opacity: 0});
+                  } else {
+                    if (id in map_finished) {
+                      delete map_finished[id];
+                      $('#rest').html(1*$('#rest').html()+1);
+                    }
+                  }
+                  
+                  // Este bloque se hacia en click() pero mejor aqui para que tambien funcione en IE
+                  // restablecer activo previo
+                  if (active) {
+                    active.animate({fill: map_colors[active.id], stroke: map_colors[active.id]}, 500, '>');
+                  }
+                  // activar actual
+                  active = this;
+                  active.animate({fill: map_colors[id], opacity: def_opacity}, 500, '>');
+
+                  // ocultar otras info
+                  $('.info').hide();
+                  // mostrar info actual
+                  $('#'+id).show().css('background-color', map_colors[id]);
+                  
+                }
+              )
+              .hover(function() {
+                this.id = id;
+                this.color = map_colors[id];
+                this.attr({cursor: 'pointer'});
+                if (this!=active) {
+                  this.animate({fill: this.color, stroke: 'white'}, 500, '>');
+                }
+              }, function() {
+                if (this!=active) {
+                  this.animate({fill: this.color, stroke: this.color}, 500, '>');
+                }
+              });
+            // save positions
+            map_x[id] = map[id].getBBox().x;
+            map_y[id] = map[id].getBBox().y;
+            
+          });// end each
+          
+          $('#shuffle_btn').click(function() {
+            shuffle();
+          });
+          
+          function shuffle() {
+            function updateTimer() {};
+            $('#score').html(0);
+            map_lenght = 0;
+            for (id in map) {
+              map_lenght++;
+              map[id].translate(-map[id].getBBox().x+rand(200), -map[id].getBBox().y+rand(200));
+            }
+            $('#rest').html(map_lenght);
+            startTimer();
+          }
+          
+        } // end success
+        
+      });
+      
+      var mm = 0;
+      var ss = -1;
+      var timer = null;
+      
+      function doTimer() {
+        ss++;
+        if (ss==60) {
+          ss = '00';
+          mm++;
+          if (mm==60) {
+            mm = '00';
+          }
+        }
+        if (mm<10) mm = '0' + 1*mm;
+        if (ss<10) ss = '0' + 1*ss;
+        $('#time').html(mm+':'+ss);
+      }
+      
+      function startTimer() {
+        mm = 0;
+        ss = -1;
+        $('#time').html('--:--');
+        if (!timer) {
+          timer = setInterval(function() {doTimer();}, 1000);
+        }
+      }
+      
+      function stopTimer() {
+        clearInterval(timer);
+      }
+      
+    });
+  </script>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-3685228-11']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+</head>
+<body>
+  <div id="wrapper">
+    <div id="container">
+      <div id="canvas"></div>
+      <div id="panel">
+        &nbsp;
+        Nivel:
+        <select name="tolerance" id="tolerance">
+          <option value="10">Master</option>
+          <option value="20">Jedi</option>
+          <option value="50">Padawan</option>
+          <option value="100" selected="true">Principiante</option>
+        </select>
+        &nbsp;
+        Tiempo:
+        <span id="time">Práctica</span>
+        &nbsp;
+        Quedan:
+        <span id="rest">0</span> piezas
+        &nbsp;
+        Puntaje:
+        <span id="score">0</span>
+        <a href="#" id="shuffle_btn">Mezclar</a>
+      </div>
+      <div id="test">[TEST]</div>
+      <div id="infobox">
+        <div class="info" style="display:block;">Perú</div>
+        <div id="Arequipa" class="info">Arequipa</div>
+        <div id="Ancash" class="info">Ancash</div>
+        <div id="Apurimac" class="info">Apurímac</div>
+        <div id="Ica" class="info">Ica</div>
+        <div id="Lima" class="info">Lima</div>
+        <div id="Ayacucho" class="info">Ayacucho</div>
+        <div id="Piura" class="info">Piura</div>
+        <div id="Lambayeque" class="info">Lambayeque</div>
+        <div id="Tumbes" class="info">Tumbes</div>
+        <div id="Tacna" class="info">Tacna</div>
+        <div id="Puno" class="info">Puno</div>
+        <div id="Huancavelica" class="info">Huancavelica</div>
+        <div id="Cuzco" class="info">Cuzco</div>
+        <div id="Junin" class="info">Junín</div>
+        <div id="Ucayali" class="info">Ucayali</div>
+        <div id="Pasco" class="info">Pasco</div>
+        <div id="Huanuco" class="info">Huánuco</div>
+        <div id="San_Martin" class="info">San Martín</div>
+        <div id="Cajamarca" class="info">Cajamarca</div>
+        <div id="Amazonas" class="info">Amazonas</div>
+        <div id="La_Libertad" class="info">La Libertad</div>
+        <div id="Loreto" class="info">Loreto</div>
+        <div id="Moquegua" class="info">Moquegua</div>
+        <div id="Madre_de_Dios" class="info">Madre de Dios</div>
+        <div id="Titicaca" class="info">Lago Titicaca</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
