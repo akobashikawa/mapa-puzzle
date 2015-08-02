@@ -1,2 +1,2 @@
-# mapa-puzzle
-Puzzle con un mapa
+# Mapa Puzzle
+Puzzle con un mapa.
